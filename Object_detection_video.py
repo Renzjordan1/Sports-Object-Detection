@@ -99,7 +99,7 @@ while(video.isOpened()):
 
     # Get x, y, z coord of ball
     for i, box in enumerate(boxes[0]):
-        if(scores[0][i] > 0.5):
+        if (scores[0][i] > 0.5):
             yMin = int((box[0] * height))
             xMin = int((box[1] * width))
             yMax = int((box[2] * height))
@@ -107,16 +107,18 @@ while(video.isOpened()):
 
             xCoor = int(np.mean([xMin, xMax]))
             yCoor = int(np.mean([yMin, yMax]))
-            zCoor = (1 / ((xMax - xMin) * (yMax - yMin))) ** 4
+            zCoor = (1 / ((xMax - xMin) * (yMax - yMin))) ** .25
 
-            if(classes[0][i] == 1):  # basketball
+            if (classes[0][i] == 1):  # basketball
                 cv2.rectangle(frame, (xMin, yMin), (xMax, yMax), (36, 255, 12), 2)
                 cv2.putText(frame, 'basketball', (xMin, yMin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
 
-            if(yCoor < 680):
-                x.append(xCoor)
-                y.append(height - yCoor)
-                z.append(zCoor)
+            if (yCoor < 680):
+                if (((xMax - xMin) >= (yMax - yMin) * .85) and ((xMax - xMin) <= (yMax - yMin) * 1.15)):
+                    print(xCoor, yCoor, zCoor)
+                    x.append(xCoor)
+                    y.append(height - yCoor)
+                    z.append(zCoor)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('Object detector', frame)
