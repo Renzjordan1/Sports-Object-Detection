@@ -1,27 +1,10 @@
-######## Video Object Detection Using Tensorflow-trained Classifier #########
-#
-# Author: Evan Juras
-# Date: 1/16/18
-# Description:
-# This program uses a TensorFlow-trained classifier to perform object detection.
-# It loads the classifier and uses it to perform object detection on a video.
-# It draws boxes, scores, and labels around the objects of interest in each
-# frame of the video.
-
-# Some of the code is copied from Google's example at
-# https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
-
-# and some is copied from Dat Tran's example at
-# https://github.com/datitran/object_detector_app/blob/master/object_detection_app.py
-
-# but I changed it to make it more understandable to me.
-
 # Import packages
 import os
 import cv2
 import numpy as np
 import tensorflow as tf
 import sys
+import func
 
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -30,7 +13,7 @@ import matplotlib
 
 # Name of the directory containing the object detection module we're using
 MODEL_NAME = 'inference_graph'
-VIDEO_NAME = '20200507_170523.mp4'
+VIDEO_NAME = '20200427_161035.mp4'
 
 # Path to frozen detection graph .pb file, which contains the model that is used
 # for object detection.
@@ -38,10 +21,6 @@ PATH_TO_CKPT = os.path.join(MODEL_NAME, 'frozen_inference_graph.pb')
 
 # Path to video
 PATH_TO_VIDEO = os.path.join('vids', VIDEO_NAME)
-
-# Number of classes the object detector can identify
-NUM_CLASSES = 1
-
 
 # Load the Tensorflow model into memory.
 detection_graph = tf.Graph()
@@ -74,15 +53,64 @@ num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 # Open video file
 video = cv2.VideoCapture(PATH_TO_VIDEO)
 
-x = []
-y = []
-z = []
+# y-coor of bottom of hoop
+bottomOfHoop = 212
+
+# frames
 f = 0
 
-while(video.isOpened()):
+# last y pos
+last = 0
 
-    width = video.get(cv2.CAP_PROP_FRAME_WIDTH)   # float
-    height = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+# x,y,z of each shot
+xTemp = []
+yTemp = []
+zTemp = []
+
+# color options
+colors = ['g', 'r']
+
+# image size
+width = video.get(cv2.CAP_PROP_FRAME_WIDTH)   # float
+height = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+# Calculate aspect ratio
+if (width >= height):
+    ratio = width / height
+else:
+    ratio = height / width
+
+# Sample image aspect ratio
+scanRatio = 1.7784810126582278
+
+# To resize frame to fit sample focal length
+resize = scanRatio / ratio
+
+# Standard ball size in inches (circumference)
+ballSize = 29.5
+
+# Already have focal length from sample image
+focalLength = 472.8363180318197
+
+# Plot 3D graph
+matplotlib.use('TkAgg')
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+ax.scatter(xTemp, zTemp, yTemp, c='r', marker='o')
+
+# Set axes
+ax.axes.set_xlim3d(left=0.2, right=height)
+ax.axes.set_zlim3d(bottom=0.2, top=height)
+# ax.axes.set_zlim3d(bottom=0.2, top=9.8)
+
+# Label axes
+ax.set_xlabel('x-axis')
+ax.set_zlabel('y-axis')
+ax.set_ylabel('z-axis')
+plt.show(block=False)
+
+while(video.isOpened()):
 
     # Acquire frame and expand frame dimensions to have shape: [1, None, None, 3]
     # i.e. a single-column array, where each item in the column has the pixel RGB value
@@ -100,6 +128,7 @@ while(video.isOpened()):
     # Get x, y, z coord of ball
     for i, box in enumerate(boxes[0]):
         if (scores[0][i] > 0.5):
+
             yMin = int((box[0] * height))
             xMin = int((box[1] * width))
             yMax = int((box[2] * height))
@@ -107,18 +136,35 @@ while(video.isOpened()):
 
             xCoor = int(np.mean([xMin, xMax]))
             yCoor = int(np.mean([yMin, yMax]))
-            zCoor = (1 / ((xMax - xMin) * (yMax - yMin))) ** .25
 
+            # Find distance from camera in inches
+            distance = func.getDistance(focalLength, 29.5, (xMax - xMin) * resize)
+
+            # draw object detection
             if (classes[0][i] == 1):  # basketball
                 cv2.rectangle(frame, (xMin, yMin), (xMax, yMax), (36, 255, 12), 2)
                 cv2.putText(frame, 'basketball', (xMin, yMin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
 
-            if (yCoor < 680):
+            # if ball has finished shooting, clear temporary data lists
+            if(last <= bottomOfHoop and yCoor > bottomOfHoop):
+                xTemp = []
+                yTemp = []
+                zTemp = []
+
+            # detect if ball is shot
+            if (yCoor < bottomOfHoop):
+
+                # Check if detected ball is the whole ball
                 if (((xMax - xMin) >= (yMax - yMin) * .85) and ((xMax - xMin) <= (yMax - yMin) * 1.15)):
-                    print(xCoor, yCoor, zCoor)
-                    x.append(xCoor)
-                    y.append(height - yCoor)
-                    z.append(zCoor)
+
+                    # append point to temporary data plots
+                    xTemp.append(xCoor)
+                    yTemp.append(height - yCoor)
+                    zTemp.append(distance)
+
+            # print('x:', xCoor)
+            # print('y:', yCoor)
+            # print('z', distance)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('Object detector', frame)
@@ -127,33 +173,38 @@ while(video.isOpened()):
     if cv2.waitKey(1) == ord('q'):
         break
 
+    # Number of frames iterated
     f += 1
     print(f)
 
-
-print("x", x)
-print("y", y)
-print("z", z)
-
-# Plot 3D graph
-matplotlib.use('TkAgg')
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-ax.scatter(x, z, y, c='r', marker='o')
-
-ax.axes.set_xlim3d(left=0.2, right=height)
-ax.axes.set_zlim3d(bottom=0.2, top=height)
-# ax.axes.set_zlim3d(bottom=0.2, top=9.8)
-
-ax.set_xlabel('x-axis')
-ax.set_zlabel('y-axis')
-ax.set_ylabel('z-axis')
+    # Real-time plot
+    ax.plot(xTemp, zTemp, yTemp, c='r', marker='o', markersize=5)
+    plt.pause(0.01)
 
 
-plt.show()
+plt.draw()
+
+# Non-Real-Time Graph
+
+# # Plot 3D graph
+# matplotlib.use('TkAgg')
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+
+# ax.scatter(x, z, y, c='r', marker='o')
+
+# ax.axes.set_xlim3d(left=0.2, right=height)
+# ax.axes.set_zlim3d(bottom=0.2, top=height)
+# # ax.axes.set_zlim3d(bottom=0.2, top=9.8)
+
+# ax.set_xlabel('x-axis')
+# ax.set_zlabel('y-axis')
+# ax.set_ylabel('z-axis')
 
 
-# # Clean up
-# video.release()
-# cv2.destroyAllWindows()
+# plt.show()
+
+
+# Clean up
+video.release()
+cv2.destroyAllWindows()

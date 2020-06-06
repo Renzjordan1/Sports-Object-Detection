@@ -1,20 +1,3 @@
-######## Image Object Detection Using Tensorflow-trained Classifier #########
-#
-# Author: Evan Juras
-# Date: 1/15/18
-# Description:
-# This program uses a TensorFlow-trained neural network to perform object detection.
-# It loads the classifier and uses it to perform object detection on an image.
-# It draws boxes, scores, and labels around the objects of interest in the image.
-
-# Some of the code is copied from Google's example at
-# https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
-
-# and some is copied from Dat Tran's example at
-# https://github.com/datitran/object_detector_app/blob/master/object_detection_app.py
-
-# but I changed it to make it more understandable to me.
-
 # Import packages
 import os
 import cv2
@@ -22,9 +5,6 @@ import numpy as np
 import tensorflow as tf
 import sys
 import func
-
-# This is needed since the notebook is stored in the object_detection folder.
-sys.path.append("..")
 
 # Name of the directory containing the object detection module we're using
 MODEL_NAME = 'inference_graph'
@@ -36,9 +16,6 @@ PATH_TO_CKPT = os.path.join(MODEL_NAME, 'frozen_inference_graph.pb')
 
 # Path to video
 PATH_TO_IMAGE = os.path.join('vids', IMAGE_NAME)
-
-# Number of classes the object detector can identify
-NUM_CLASSES = 1
 
 
 # Load the Tensorflow model into memory.
@@ -76,17 +53,30 @@ image = cv2.imread(PATH_TO_IMAGE)
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 image_expanded = np.expand_dims(image_rgb, axis=0)
 
+# image size
 width = image.shape[1]  # float
 height = image.shape[0]
 
+# Calculate aspect ratio
 if (width >= height):
     ratio = width / height
 else:
     ratio = height / width
 
-scanRatio = 1.7784810126582278
+# Sample image aspect ratio
+# scanRatio = 1.7784810126582278
 
-resize = scanRatio/ratio
+# To resize frame to fit sample focal length
+# resize = scanRatio / ratio
+
+# Standard ball size in inches (circumference)
+ballSize = 29.5
+
+# Distance fromm object in sample image
+reach = 24
+
+# Already have focal length from sample image
+# focalLength = 472.8363180318197
 
 
 # Perform the actual detection by running the model with the image as input
@@ -105,18 +95,21 @@ for i, box in enumerate(boxes[0]):
         xCoor = int(np.mean([xMin, xMax]))
         yCoor = int(np.mean([yMin, yMax]))
 
-        # focalLength = func.getFocalLength(24, 29.5, xMax - xMin)
-        focalLength = 472.8363180318197
-        distance = func.getDistance(focalLength, 29.5, (xMax - xMin)*resize)
+        # Calculate focal length of sample image
+        focalLength = func.getFocalLength(reach, ballSize, xMax - xMin)
 
+        # Find distance from camera in inches
+        # distance = func.getDistance(focalLength, ballSize, (xMax - xMin) * resize)
+
+        # draw object detection
         if (classes[0][i] == 1):  # basketball
             cv2.rectangle(image, (xMin, yMin), (xMax, yMax), (36, 255, 12), 2)
             cv2.putText(image, 'basketball', (xMin, yMin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
 
         print('x:', xCoor)
         print('y:', yCoor)
-        # print('focalLength:', focalLength)
-        print('distance:', distance)
+        print('focalLength:', focalLength)
+        # print('distance:', distance)
         print(ratio)
 
 
