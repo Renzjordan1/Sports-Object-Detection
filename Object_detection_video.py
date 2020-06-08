@@ -53,8 +53,13 @@ num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 # Open video file
 video = cv2.VideoCapture(PATH_TO_VIDEO)
 
-# y-coor of bottom of hoop
-bottomOfHoop = 212
+# coord of hoop
+hoopXMin = 301
+hoopXMax = 330
+hoopYMin = 190
+hoopYMax = 212
+hoopZ = 195
+
 
 # frames
 f = 0
@@ -66,6 +71,12 @@ last = 0
 xTemp = []
 yTemp = []
 zTemp = []
+
+#Make or Miss
+shooting = False
+make = False
+made = 0
+total = 0
 
 # color options
 colors = ['g', 'r']
@@ -125,10 +136,11 @@ while(video.isOpened()):
         [detection_boxes, detection_scores, detection_classes, num_detections],
         feed_dict={image_tensor: frame_expanded})
 
-    # Get x, y, z coord of ball
+    # Check detected object
     for i, box in enumerate(boxes[0]):
         if (scores[0][i] > 0.5):
 
+            # Get x, y, z coord of ball
             yMin = int((box[0] * height))
             xMin = int((box[1] * width))
             yMax = int((box[2] * height))
@@ -145,26 +157,43 @@ while(video.isOpened()):
                 cv2.rectangle(frame, (xMin, yMin), (xMax, yMax), (36, 255, 12), 2)
                 cv2.putText(frame, 'basketball', (xMin, yMin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
 
-            # if ball has finished shooting, clear temporary data lists
-            if(last <= bottomOfHoop and yCoor > bottomOfHoop):
-                xTemp = []
-                yTemp = []
-                zTemp = []
+            # if ball has finished shooting
+            if(shooting == True):
+                if(last <= hoopYMax and yCoor > hoopYMax):
+
+                    #Record makes and misses
+                    if(make == True):
+                        made += 1
+                    total += 1
+
+                    # reset temporary data lists and make detection
+                    xTemp = []
+                    yTemp = []
+                    zTemp = []
+                    make = False
+                    shooting = False
 
             # detect if ball is shot
-            if (yCoor < bottomOfHoop):
+            if (yCoor < hoopYMax):
 
                 # Check if detected ball is the whole ball
                 if (((xMax - xMin) >= (yMax - yMin) * .85) and ((xMax - xMin) <= (yMax - yMin) * 1.15)):
+
+                    #ball is shot
+                    shooting = True
 
                     # append point to temporary data plots
                     xTemp.append(xCoor)
                     yTemp.append(height - yCoor)
                     zTemp.append(distance)
 
-            # print('x:', xCoor)
-            # print('y:', yCoor)
-            # print('z', distance)
+                    #check if ball made or miss
+                    if(make == False):
+                        make = func.makeOrMiss(xCoor, yCoor, distance, hoopXMin, hoopXMax, hoopYMin, hoopYMax, hoopZ)
+
+            print('x:', xCoor)
+            print('y:', yCoor)
+            print('z:', distance)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('Object detector', frame)
@@ -176,6 +205,9 @@ while(video.isOpened()):
     # Number of frames iterated
     f += 1
     print(f)
+
+    # Made/Total
+    print("Shot Total:", str(made) + "/" + str(total))
 
     # Real-time plot
     ax.plot(xTemp, zTemp, yTemp, c='r', marker='o', markersize=5)

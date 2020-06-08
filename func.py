@@ -17,3 +17,10 @@ def getDistance(focalLength, size, width, obj="ball"):  # in inches
     else:
         distance = focalLength * (size) / width
     return distance
+
+
+def makeOrMiss(ballX, ballY, ballZ, hoopXMin, hoopXMax, hoopYMin, hoopYMax, hoopZ):
+    if(ballX > hoopXMin and ballX < hoopXMax and ballY > hoopYMin and ballY <= hoopYMax and (ballZ >= hoopZ * .9 and ballZ <= hoopZ * 1.1)):
+        return True
+    else:
+        return False
