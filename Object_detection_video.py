@@ -60,12 +60,18 @@ hoopYMin = 190
 hoopYMax = 212
 hoopZ = 195
 
-
 # frames
 f = 0
 
 # last y pos
 last = 0
+
+# x,y,z of all shots
+# list of make or miss
+shotList = []
+xTotal = []
+yTotal = []
+zTotal = []
 
 # x,y,z of each shot
 xTemp = []
@@ -108,12 +114,13 @@ matplotlib.use('TkAgg')
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-ax.scatter(xTemp, zTemp, yTemp, c='r', marker='o')
 
 # Set axes
 ax.axes.set_xlim3d(left=0.2, right=height)
 ax.axes.set_zlim3d(bottom=0.2, top=height)
-# ax.axes.set_zlim3d(bottom=0.2, top=9.8)
+
+# initialize plot for y-axis limits
+ax.plot([], [], [], c='r', marker='o', markersize=5)
 
 # Label axes
 ax.set_xlabel('x-axis')
@@ -161,10 +168,16 @@ while(video.isOpened()):
             if(shooting == True):
                 if(last <= hoopYMax and yCoor > hoopYMax):
 
-                    #Record makes and misses
+                    # Record makes and misses
                     if(make == True):
                         made += 1
                     total += 1
+
+                    # add last shot data to the total shot data
+                    xTotal.append(xTemp)
+                    yTotal.append(yTemp)
+                    zTotal.append(zTemp)
+                    shotList.append(make)
 
                     # reset temporary data lists and make detection
                     xTemp = []
@@ -179,6 +192,19 @@ while(video.isOpened()):
                 # Check if detected ball is the whole ball
                 if (((xMax - xMin) >= (yMax - yMin) * .85) and ((xMax - xMin) <= (yMax - yMin) * 1.15)):
 
+                    # reset plot for next shot
+                    if(shooting == False):
+
+                        # clear plot
+                        ax.cla()
+
+                        # Set axes
+                        ax.axes.set_xlim3d(left=0.2, right=height)
+                        ax.axes.set_zlim3d(bottom=0.2, top=height)
+
+                        # initialize plot for y-axis limits
+                        ax.plot(xTemp, zTemp, yTemp, c='r', marker='o', markersize=5)
+
                     #ball is shot
                     shooting = True
 
@@ -187,7 +213,7 @@ while(video.isOpened()):
                     yTemp.append(height - yCoor)
                     zTemp.append(distance)
 
-                    #check if ball made or miss
+                    # check if ball made or miss
                     if(make == False):
                         make = func.makeOrMiss(xCoor, yCoor, distance, hoopXMin, hoopXMax, hoopYMin, hoopYMax, hoopZ)
 
@@ -213,30 +239,38 @@ while(video.isOpened()):
     ax.plot(xTemp, zTemp, yTemp, c='r', marker='o', markersize=5)
     plt.pause(0.01)
 
-
-plt.draw()
+# Clean up
+plt.close()
+video.release()
+cv2.destroyAllWindows()
 
 # Non-Real-Time Graph
 
-# # Plot 3D graph
-# matplotlib.use('TkAgg')
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
+# Plot 3D graph
+matplotlib.use('TkAgg')
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
 
-# ax.scatter(x, z, y, c='r', marker='o')
+# Set axes
+ax.axes.set_xlim3d(left=0.2, right=height)
+ax.axes.set_zlim3d(bottom=0.2, top=height)
 
-# ax.axes.set_xlim3d(left=0.2, right=height)
-# ax.axes.set_zlim3d(bottom=0.2, top=height)
-# # ax.axes.set_zlim3d(bottom=0.2, top=9.8)
+# Initialize plot for y-axis limits
+ax.plot([], [], [], c='r', marker='o', markersize=5)
 
-# ax.set_xlabel('x-axis')
-# ax.set_zlabel('y-axis')
-# ax.set_ylabel('z-axis')
+# Plot all shots onto one graph, colored based on make or miss
+for i in range(len(shotList)):
+    c = ''
+    if(shotList[i] == True):
+        c = 'g'
+    else:
+        c = 'r'
+    ax.plot(xTotal[i], zTotal[i], yTotal[i], c=c, marker='o', markersize=5)
 
 
-# plt.show()
+ax.set_xlabel('x-axis')
+ax.set_zlabel('y-axis')
+ax.set_ylabel('z-axis')
 
 
-# Clean up
-video.release()
-cv2.destroyAllWindows()
+plt.show()
